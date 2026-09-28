@@ -1,0 +1,4 @@
+/mnt/g/common/c++/cpp-tcp/build/CMakeFiles/cpp_tcp.dir
+/mnt/g/common/c++/cpp-tcp/build/CMakeFiles/tcp_server.dir
+/mnt/g/common/c++/cpp-tcp/build/CMakeFiles/edit_cache.dir
+/mnt/g/common/c++/cpp-tcp/build/CMakeFiles/rebuild_cache.dir
