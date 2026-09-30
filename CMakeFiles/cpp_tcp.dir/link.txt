@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcpp_tcp.a CMakeFiles/cpp_tcp.dir/src/tcp_server.cpp.o CMakeFiles/cpp_tcp.dir/src/pipe_ret_t.cpp.o
+/usr/bin/ranlib libcpp_tcp.a
