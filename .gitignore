@@ -1,5 +1,6 @@
 features.txt
 ignore/
 build/
+CMakeFiles/
 
 !CMakeLists.txt

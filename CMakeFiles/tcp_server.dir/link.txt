@@ -1,1 +1,0 @@
-/usr/bin/c++ -std=c++20 CMakeFiles/tcp_server.dir/examples/server_example.cpp.o -o tcp_server  libcpp_tcp.a 
