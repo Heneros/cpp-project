@@ -17,7 +17,7 @@ private:
     FileDescriptor _sockfd;
     std::string _ip = "";
     std::atomic<bool> _isConnected;
-    std::thread *_receivedThread = nullptr;
+    std::thread *_receiveThread = nullptr;
     client_event_handler_t _eventHandlerCallback;
 
     void setConnected(bool flag) { _isConnected = flag; }
@@ -31,5 +31,13 @@ public:
 
     std::string getIp() const { return _ip; }
 
+    void setEventsHandler(const client_event_handler_t &eventHandler) { _eventHandlerCallback = eventHandler; };
+    void publishEvent(ClientEvent clientEvent, const std::string &msg = "");
+    bool isConnected() const { return _isConnected; }
+
     void startListen();
+    void send(const char *msg, size_t msgSize) const;
+
+    void close();
+    void print() const;
 };

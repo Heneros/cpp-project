@@ -37,11 +37,26 @@ private:
     std::mutex _subscribersMtx;
     std::mutex _clientsMtx;
 
+    std::thread * _clientsRemoverThread = nullptr;
+    std::atomic<bool> _stopRemoveClientsTask;
+    void publishClientMsg(const Client &client, const char *msg, size_t msgSize);
+    void publishClientDisconnected(const std::string &, const std::string &);
+    pipe_ret_t waitForClient(uint32_t timeout);
+    void clientEventHandler(const Client &, ClientEvent, const std::string &msg);
+  
+    void removeDeadClients();
+    void terminateDeadClientsRemover();
+    static pipe_ret_t sendToClient(const Client &client, const char *msg, size_t size);
+
 public:
     TcpServer();
     ~TcpServer();
-
+    pipe_ret_t connectTo(const std::string &address, int port);
+    pipe_ret_t sendMsg(const char *msg, size_t size);
     void printClients();
 
     pipe_ret_t start(int port, int maxNumOfClients = 5, bool removeDeadClientsAutomatically = true);
+
+    
+    void printClients();
 };

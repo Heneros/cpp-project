@@ -24,7 +24,7 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Компилятор: /usr/bin/g++ (WSL)"
+            "detail": "Compiler: /usr/bin/g++ (WSL)"
         },
         {
             "type": "cppbuild",
