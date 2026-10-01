@@ -9,7 +9,8 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++20")
 add_library(${PROJECT_NAME}
 src/tcp_server.cpp
 src/pipe_ret_t.cpp
-)
+src/tcp_client.cpp
+src/client.cpp)
 
 option(SERVER_EXAMPLE "Build SERVER" ON)
 
@@ -24,8 +25,6 @@ add_executable(tcp_server examples/server_example.cpp)
 target_link_libraries(tcp_server ${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT})
 
 endif()
-
-
 
 
 option(CLIENT_EXAMPLE, "Build Client" ON)

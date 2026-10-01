@@ -10,7 +10,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <netdb.h>
 #include <vector>
 #include <errno.h>
 #include <thread>
@@ -28,8 +27,12 @@ private:
     std::atomic<bool> _isConnected;
     std::atomic<bool> _isClosed;
     struct sockaddr_in _server;
+    std::vector<client_observer_t> _subscibers;
+    std::thread *_receiveTask = nullptr;
+    std::mutex _subscribersMtx;
 
-    void initializeSocket();
+    void
+    initializeSocket();
     void startReceivingMessages();
     void setAddress(const std::string &address, int port);
     void publishServerMsg(const char *msg, size_t msgSize);

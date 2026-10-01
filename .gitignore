@@ -6,4 +6,5 @@ Makefile
 CMakeCache.txt
 cmake_install.cmake
 
+libcpp_tcp.a
 !CMakeLists.txt
