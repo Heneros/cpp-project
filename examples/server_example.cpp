@@ -10,6 +10,12 @@ TcpServer server;
 
 server_observer_t observer1, observer2;
 
+void onIncomingMsg1(const std::string &clientIP, const char *msg, size_t size)
+{
+    std::string = msg;
+    std::cout << "Observer1 got client msg: " << msgStr << "\n";
+}
+
 int main()
 {
     cout << "Hello World";

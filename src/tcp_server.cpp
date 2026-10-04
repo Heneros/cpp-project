@@ -101,21 +101,44 @@ void TcpServer::removeDeadClients()
 pipe_ret_t TcpServer::close()
 {
     terminateDeadClientsRemover();
+    {
+        std::lock_guard<std::mutex> lock(_clientsMtx);
+        for (Client *client : _clients)
+        {
+            try
+            {
+                client->close();
+            }
+            catch (const std::runtime_error &error)
+            {
+                return pipe_ret_t::failure(error.what());
+            }
+        }
+        _clients.clear();
+    }
+    {
+        const int closeServerResult = ::close(_sockfd.get());
+        const bool closeServerFailed = (closeServerResult == -1);
+        if (closeServerFailed)
+        {
+            return pipe_ret_t::failure(strerror(errno));
+        }
+    }
+    return pipe_ret_t::success();
 }
 
 void TcpServer::terminateDeadClientsRemover()
 {
-    
 }
 
-    void TcpServer::initializeSocket()
+void TcpServer::initializeSocket()
+{
+    _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+    const bool socketFailed = (_sockfd.get() == -1);
+    if (socketFailed)
     {
-        _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
-        const bool socketFailed = (_sockfd.get() == -1);
-        if (socketFailed)
-        {
-            throw std::runtime_error(strerror(errno));
-        }
-        const int option = 1;
-        setsockopt(_sockfd.get(), SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+        throw std::runtime_error(strerror(errno));
     }
+    const int option = 1;
+    setsockopt(_sockfd.get(), SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+}

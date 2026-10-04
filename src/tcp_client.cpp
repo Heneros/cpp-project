@@ -62,3 +62,52 @@ void TcpClient::setAddress(const std::string &address, int port)
     _server.sin_family = AF_INET;
     _server.sin_port = htons(port);
 }
+/*
+ * Receive server packets, and notify user
+ */
+void TcpClient::receiveTask()
+{
+    while (_isConnected)
+    {
+        const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd);
+        if (waitResult == fd_wait::Result::FAILURE)
+        {
+            throw std::runtime_error(strerror(errno));
+        }
+        else if (waitResult == fd_wait::Result::TIMEOUT)
+        {
+            continue;
+        }
+
+        char msg[MAX_PACKET_SIZE];
+        const size_t numOfBytesReceived = recv(_sockfd.get(), msg, MAX_PACKET_SIZE, 0);
+
+        if (numOfBytesReceived < 1)
+        {
+            std::string errorMsg;
+            if (numOfBytesReceived == 0)
+            {
+                errorMsg = "Server closed connection";
+            }
+            else
+            {
+                errorMsg = strerror(errno);
+            }
+            _isConnected = false;
+            publishServerDisconnected(pipe_ret_t::failure(errorMsg));
+            return;
+        }
+        else
+        {
+            publishServerMsg(msg, numOfBytesReceived);
+        }
+    }
+}
+void TcpClient::publishServerMsg(const char *msg, size_t msgSize)
+{
+}
+void TcpClient::publishServerDisconnected(const pipe_ret_t &ret)
+
+{
+    std::lock_guard<std::mutex> lock(_subscribersMtx);
+}

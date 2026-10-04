@@ -10,6 +10,7 @@ add_library(${PROJECT_NAME}
 src/tcp_server.cpp
 src/pipe_ret_t.cpp
 src/tcp_client.cpp
+src/common.cpp
 src/client.cpp)
 
 option(SERVER_EXAMPLE "Build SERVER" ON)
