@@ -28,16 +28,11 @@ target_link_libraries(tcp_server ${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 
-option(CLIENT_EXAMPLE, "Build Client" ON)
-
+option(CLIENT_EXAMPLE "Build Client" ON)
 if(CLIENT_EXAMPLE)
-
     add_definitions(
             -DCLIENT_EXAMPLE
     )
-
     add_executable(tcp_client examples/client_example.cpp)
-
     target_link_libraries (tcp_client ${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT})
-
 endif()

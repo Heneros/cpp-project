@@ -254,3 +254,47 @@ pipe_ret_t TcpServer::waitForClient(uint32_t timeout)
     }
     return pipe_ret_t::success();
 }
+
+pipe_ret_t TcpServer::sendToClient(const Client &client, const char *msg, size_t size)
+{
+    try
+    {
+        client.send(msg, size);
+    }
+    catch (const std::runtime_error &error)
+    {
+        return pipe_ret_t::failure(error.what());
+    }
+    return pipe_ret_t::success();
+}
+
+pipe_ret_t TcpServer::sendToClient(const std::string &clientIP, const char *msg, size_t size)
+{
+    std::lock_guard<std::mutex> lock(_clientsMtx);
+
+    const auto clientIter = std::find_if(_clients.begin(), _clients.end(),
+                                         [&clientIP](Client *client)
+                                         { return client->getIp() == clientIP; });
+
+    if (clientIter == _clients.end())
+    {
+        return pipe_ret_t::failure("client not found");
+    }
+
+    const Client &client = *(*clientIter);
+    return sendToClient(client, msg, size);
+}
+
+pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
+{
+    std::lock_guard<std::mutex> lock(_clientsMtx);
+    for (const Client *client : _clients)
+    {
+        pipe_ret_t sendingResult = sendToClient(*client, msg, size);
+        if (!sendingResult.isSuccessful())
+        {
+            return sendingResult;
+        }
+    }
+    return pipe_ret_t::success();
+}

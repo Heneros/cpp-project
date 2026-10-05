@@ -71,14 +71,35 @@ bool handleMenuSelection(int selection)
     static const int maxSelection = 4;
     if (selection < minSelection || selection > maxSelection)
     {
-        return true;
+        std::cout << "invalid selection: " << selection << ". selection must be b/w " << minSelection << " and " << maxSelection << "\n";
+        return false;
+    }
+    switch (selection)
+    {
+    case 1:
+    {
+        std::string msg;
+        std::cout << "type message to send to all connected clients:\n";
+        getline(std::cin, msg);
+        cout << msg;
+        // pipe_ret_t sendingResult = server.
+    }
+    case 2:
+    {
+        server.printClients();
+        break;
+    }
+
+    default:
+    {
+        std::cout << "invalid selection: " << selection << ". selection must be b/w " << minSelection << " and " << maxSelection << "\n";
+    }
     }
     return false;
 }
 
 int main()
 {
-
 
     pipe_ret_t startRet = server.start(65123);
     if (startRet.isSuccessful())
@@ -96,6 +117,11 @@ int main()
     observer1.wantedIP = "127.0.0.1";
 
     server.subscribe(observer1);
+
+    observer2.incomingPacketHandler = onIncomingMsg2;
+    observer2.disconnectionHandler = nullptr;
+    observer2.wantedIP = "10.88.0.11";
+    server.subscribe(observer2);
 
     acceptClient();
 
