@@ -29,6 +29,7 @@ public:
 
     bool operator==(const Client &other) const;
 
+    void setIp(const std::string &ip) { _ip = ip; };
     std::string getIp() const { return _ip; }
 
     void setEventsHandler(const client_event_handler_t &eventHandler) { _eventHandlerCallback = eventHandler; };

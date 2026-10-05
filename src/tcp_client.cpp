@@ -111,3 +111,9 @@ void TcpClient::publishServerDisconnected(const pipe_ret_t &ret)
 {
     std::lock_guard<std::mutex> lock(_subscribersMtx);
 }
+
+void TcpClient::subscribe(const client_observer_t &observer)
+{
+    std::lock_guard<std::mutex> lock(_subscribersMtx);
+    _subscibers.push_back(observer);
+}

@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "../include/tcp_server.h"
+#include "../include/common.h"
 
 TcpServer::TcpServer()
 {
@@ -15,6 +16,12 @@ TcpServer::TcpServer()
 TcpServer::~TcpServer()
 {
     close();
+}
+
+void TcpServer::subscribe(const server_observer_t &observer)
+{
+    std::lock_guard<std::mutex> lock(_subscribersMtx);
+    _subscribers.push_back(observer);
 }
 
 void TcpServer::printClients()
@@ -127,10 +134,6 @@ pipe_ret_t TcpServer::close()
     return pipe_ret_t::success();
 }
 
-void TcpServer::terminateDeadClientsRemover()
-{
-}
-
 void TcpServer::initializeSocket()
 {
     _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
@@ -141,4 +144,113 @@ void TcpServer::initializeSocket()
     }
     const int option = 1;
     setsockopt(_sockfd.get(), SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+}
+
+void TcpServer::terminateDeadClientsRemover()
+{
+    if (_clientsRemoverThread)
+    {
+        _stopRemoveClientsTask = true;
+        _clientsRemoverThread->join();
+        delete _clientsRemoverThread;
+        _clientsRemoverThread = nullptr;
+    }
+}
+
+void TcpServer::publishClientMsg(const Client &client, const char *msg, size_t msgSize)
+{
+    std::lock_guard<std::mutex> lock(_subscribersMtx);
+    for (const server_observer_t &subscriber : _subscribers)
+    {
+        if (subscriber.wantedIP == client.getIp() || subscriber.wantedIP.empty())
+        {
+            if (subscriber.incomingPacketHandler)
+            {
+                subscriber.incomingPacketHandler(client.getIp(), msg, msgSize);
+            }
+        }
+    }
+}
+
+void TcpServer::clientEventHandler(const Client &client, ClientEvent event, const std::string &msg)
+{
+    switch (event)
+    {
+    case ClientEvent::DISCONNECTED:
+    {
+        publishClientDisconnected(client.getIp(), msg);
+        break;
+    }
+    case ClientEvent::INCOMING_MSG:
+    {
+        publishClientMsg(client, msg.c_str(), msg.size());
+        break;
+    }
+    }
+}
+void TcpServer::publishClientDisconnected(const std::string &clientIP, const std::string &clientMsg)
+{
+    std::lock_guard<std::mutex> lock(_subscribersMtx);
+    for (const server_observer_t &subscriber : _subscribers)
+    {
+        if (subscriber.wantedIP == clientIP)
+        {
+            if (subscriber.disconnectionHandler)
+            {
+                subscriber.disconnectionHandler(clientIP, clientMsg);
+            }
+        }
+    }
+}
+std::string TcpServer::acceptClient(uint32_t timeout)
+{
+    const pipe_ret_t waitingForClient = waitForClient(timeout);
+
+    if (!waitingForClient.isSuccessful())
+    {
+        throw std::runtime_error(waitingForClient.message());
+    }
+    socklen_t socketSize = sizeof(_clientAddress);
+    const int fileDescriptor = accept(_sockfd.get(), (struct sockaddr *)&_clientAddress, &socketSize);
+
+    const bool acceptFailed = (fileDescriptor == -1);
+
+    if (acceptFailed)
+    {
+        throw std::runtime_error(strerror(errno));
+    }
+
+    auto newClient = new Client(fileDescriptor);
+    newClient->setIp(inet_ntoa(_clientAddress.sin_addr));
+
+    using namespace std::placeholders;
+    newClient->setEventsHandler(std::bind(&TcpServer::clientEventHandler, this, _1, _2, _3));
+
+    std::lock_guard<std::mutex> lock(_clientsMtx);
+    _clients.push_back(newClient);
+
+    return newClient->getIp();
+}
+
+pipe_ret_t TcpServer::waitForClient(uint32_t timeout)
+{
+    if (timeout > 0)
+    {
+        const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd, timeout);
+        const bool noIncomingClient = (!FD_ISSET(_sockfd.get(), &_fds));
+
+        if (waitResult == fd_wait::Result::FAILURE)
+        {
+            return pipe_ret_t::failure(strerror(errno));
+        }
+        else if (waitResult == fd_wait::Result::TIMEOUT)
+        {
+            return pipe_ret_t::failure("Timeout waiting for client");
+        }
+        else if (noIncomingClient)
+        {
+            return pipe_ret_t::failure("File descriptor is not set");
+        }
+    }
+    return pipe_ret_t::success();
 }
