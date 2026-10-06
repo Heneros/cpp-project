@@ -98,6 +98,36 @@ int handleMenuSelection(int selection)
 int main()
 {
     signal(SIGINT, sig_exit);
+    client_observer_t observer;
+    observer.wantedIP = "127.0.0.1";
+    observer.incomingPacketHandler = onIncomingMsg;
+    observer.disconnectionHandler = onDisconnection;
+    client.subscribe(observer);
+    bool connected = false;
+
+    while (!connected)
+    {
+        pipe_ret_t connectRet = client.connectTo("127.0.0.1", 65123);
+        connected = connectRet.isSuccessful();
+        if (connected)
+        {
+            std::cout << "Client connected successfully\n";
+        }
+        else
+        {
+            std::cout << "Client failed to connect: " << connectRet.message() << "\n"
+                      << "Make sure the server is open and listening\n\n";
+            sleep(2);
+            std::cout << "Retrying to connect...\n";
+        }
+    }
+    bool shouldTerminate = false;
+    while (!shouldTerminate)
+    {
+        printMenu();
+        int selection = getMenuSelection();
+        shouldTerminate = handleMenuSelection(selection);
+    }
 
     return 0;
 }

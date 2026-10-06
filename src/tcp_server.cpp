@@ -202,7 +202,7 @@ void TcpServer::publishClientDisconnected(const std::string &clientIP, const std
         }
     }
 }
-std::string TcpServer::acceptClient(uint32_t timeout)
+std::string TcpServer::acceptClient(uint timeout)
 {
     const pipe_ret_t waitingForClient = waitForClient(timeout);
 
@@ -214,7 +214,6 @@ std::string TcpServer::acceptClient(uint32_t timeout)
     const int fileDescriptor = accept(_sockfd.get(), (struct sockaddr *)&_clientAddress, &socketSize);
 
     const bool acceptFailed = (fileDescriptor == -1);
-
     if (acceptFailed)
     {
         throw std::runtime_error(strerror(errno));
@@ -222,9 +221,9 @@ std::string TcpServer::acceptClient(uint32_t timeout)
 
     auto newClient = new Client(fileDescriptor);
     newClient->setIp(inet_ntoa(_clientAddress.sin_addr));
-
     using namespace std::placeholders;
     newClient->setEventsHandler(std::bind(&TcpServer::clientEventHandler, this, _1, _2, _3));
+    newClient->startListen();
 
     std::lock_guard<std::mutex> lock(_clientsMtx);
     _clients.push_back(newClient);

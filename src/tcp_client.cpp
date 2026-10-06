@@ -40,6 +40,17 @@ pipe_ret_t TcpClient::connectTo(const std::string &address, int port)
     return pipe_ret_t::success();
 }
 
+void TcpClient::initializeSocket()
+{
+    pipe_ret_t ret;
+    _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+    const bool socketFailed = (_sockfd.get() == -1);
+    if (socketFailed)
+    {
+        throw std::runtime_error(strerror(errno));
+    }
+}
+
 void TcpClient::startReceivingMessages()
 {
     _receiveTask = new std::thread(&TcpClient::receiveTask, this);
@@ -62,9 +73,35 @@ void TcpClient::setAddress(const std::string &address, int port)
     _server.sin_family = AF_INET;
     _server.sin_port = htons(port);
 }
-/*
- * Receive server packets, and notify user
- */
+
+pipe_ret_t TcpClient::sendMsg(const char *msg, size_t size)
+{
+    const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
+    if (numBytesSent < 0)
+    {
+        return pipe_ret_t::failure(strerror(errno));
+    }
+    if (numBytesSent < size)
+    {
+        char errorMsg[100];
+        sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
+        return pipe_ret_t::failure(errorMsg);
+    }
+    return pipe_ret_t::success();
+}
+
+void TcpClient::publishServerDisconnected(const pipe_ret_t &ret)
+{
+    std::lock_guard<std::mutex> lock(_subscribersMtx);
+    for (const auto &subscriber : _subscibers)
+    {
+        if (subscriber.disconnectionHandler)
+        {
+            subscriber.disconnectionHandler(ret);
+        }
+    }
+}
+
 void TcpClient::receiveTask()
 {
     while (_isConnected)
@@ -105,15 +142,48 @@ void TcpClient::receiveTask()
 }
 void TcpClient::publishServerMsg(const char *msg, size_t msgSize)
 {
-}
-void TcpClient::publishServerDisconnected(const pipe_ret_t &ret)
-
-{
     std::lock_guard<std::mutex> lock(_subscribersMtx);
+    for (const auto &subscriber : _subscibers)
+    {
+        if (subscriber.incomingPacketHandler)
+        {
+            subscriber.incomingPacketHandler(msg, msgSize);
+        }
+    }
+}
+
+void TcpClient::terminateReceiveThread()
+{
+    _isConnected = false;
+
+    if (_receiveTask)
+    {
+        _receiveTask->join();
+        delete _receiveTask;
+        _receiveTask = nullptr;
+    }
 }
 
 void TcpClient::subscribe(const client_observer_t &observer)
 {
     std::lock_guard<std::mutex> lock(_subscribersMtx);
     _subscibers.push_back(observer);
+}
+
+pipe_ret_t TcpClient::close()
+{
+    if (_isClosed)
+    {
+        return pipe_ret_t::failure("client is already closed");
+    }
+
+    terminateReceiveThread();
+
+    const bool closeFailed = (::close(_sockfd.get()) == -1);
+    if (closeFailed)
+    {
+        return pipe_ret_t::failure(strerror(errno));
+    }
+    _isClosed = true;
+    return pipe_ret_t::success();
 }

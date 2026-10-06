@@ -18,7 +18,6 @@ void onIncomingMsg1(const std::string &clientIP, const char *msg, size_t size)
 void onIncomingMsg2(const std::string &clientIP, const char *msg, size_t size)
 {
     std::string msgStr = msg;
-    // print client message
     std::cout << "Observer2 got client msg: " << msgStr << "\n";
 }
 
@@ -82,14 +81,56 @@ bool handleMenuSelection(int selection)
         std::cout << "type message to send to all connected clients:\n";
         getline(std::cin, msg);
         cout << msg;
-        // pipe_ret_t sendingResult = server.
+
+        pipe_ret_t sendingResult = server.sendToAllClients(msg.c_str(), msg.size());
+        if (sendingResult.isSuccessful())
+        {
+            std::cout << "sent message to all clients successfully\n";
+        }
+        else
+        {
+            std::cout << "failed to sent message: " << sendingResult.message() << "\n";
+        }
+        break;
     }
     case 2:
     {
         server.printClients();
         break;
     }
-
+    case 3:
+    {
+        std::cout << "enter client IP:\n";
+        std::string clientIP;
+        std::cin >> clientIP;
+        std::cout << "enter message to send:\n";
+        std::string message;
+        std::cin >> message;
+        pipe_ret_t result = server.sendToClient(clientIP, message.c_str(), message.size());
+        if (!result.isSuccessful())
+        {
+            std::cout << "sending failed: " << result.message() << "\n";
+        }
+        else
+        {
+            std::cout << "sending succeeded\n";
+        }
+        break;
+    }
+    case 4:
+    {
+        pipe_ret_t sendingResult = server.close();
+        if (sendingResult.isSuccessful())
+        {
+            std::cout << "closed server successfully\n";
+        }
+        else
+        {
+            std::cout << "failed to close server: " << sendingResult.message() << "\n";
+        }
+        return true;
+        break;
+    }
     default:
     {
         std::cout << "invalid selection: " << selection << ". selection must be b/w " << minSelection << " and " << maxSelection << "\n";
