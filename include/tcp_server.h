@@ -63,6 +63,9 @@ public:
 
     pipe_ret_t sendToAllClients(const char *msg, size_t size);
     pipe_ret_t sendToClient(const std::string &clientIP, const char *msg, size_t size);
+
+    pipe_ret_t deleteClient(const std::string &clientIp);
+
     pipe_ret_t close();
     void printClients();
 };

@@ -37,6 +37,29 @@ void TcpServer::printClients()
         client->print();
     }
 }
+pipe_ret_t TcpServer::deleteClient(const std::string &clientIp)
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(_clientsMtx);
+
+        auto clientIter = std::find_if(_clients.begin(), _clients.end(), [&clientIp](Client *client)
+                                       { return client->getIp() == clientIp; });
+
+        if (clientIter == _clients.end())
+        {
+            return pipe_ret_t::failure("Client not found");
+        }
+        delete *clientIter;
+        _clients.erase(clientIter);
+
+        return pipe_ret_t::success();
+    }
+    catch (const std::runtime_error &error)
+    {
+        return pipe_ret_t::failure(error.what());
+    }
+}
 
 void TcpServer::bindAddress(int port)
 {
