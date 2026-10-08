@@ -30,7 +30,7 @@ bool Client::operator==(const Client &other) const
 void Client::startListen()
 {
     setConnected(true);
-    _receiveThread = new std::thread(&Client::receiveTask, this);
+    _receiveThread = new std::jthread(&Client::receiveTask, this);
 }
 
 void Client::send(const char *msg, size_t msgSize) const

@@ -90,7 +90,7 @@ pipe_ret_t TcpServer::start(int port, int maxNumOfClients, bool removeDeadClient
 {
     if (removeDeadClientsAutomatically)
     {
-        _clientsRemoverThread = new std::thread(&TcpServer::removeDeadClients, this);
+        _clientsRemoverThread = new std::jthread(&TcpServer::removeDeadClients, this);
     }
     try
     {

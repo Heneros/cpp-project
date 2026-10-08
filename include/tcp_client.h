@@ -28,7 +28,7 @@ private:
     std::atomic<bool> _isClosed;
     struct sockaddr_in _server;
     std::vector<client_observer_t> _subscibers;
-    std::thread *_receiveTask = nullptr;
+    std::jthread *_receiveTask = nullptr;
     std::mutex _subscribersMtx;
 
     void

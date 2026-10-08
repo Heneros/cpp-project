@@ -17,7 +17,7 @@ private:
     FileDescriptor _sockfd;
     std::string _ip = "";
     std::atomic<bool> _isConnected;
-    std::thread *_receiveThread = nullptr;
+    std::jthread *_receiveThread = nullptr;
     client_event_handler_t _eventHandlerCallback;
 
     void setConnected(bool flag) { _isConnected = flag; }

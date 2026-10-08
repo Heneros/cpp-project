@@ -53,7 +53,7 @@ void TcpClient::initializeSocket()
 
 void TcpClient::startReceivingMessages()
 {
-    _receiveTask = new std::thread(&TcpClient::receiveTask, this);
+    _receiveTask = new std::jthread(&TcpClient::receiveTask, this);
 }
 
 void TcpClient::setAddress(const std::string &address, int port)
