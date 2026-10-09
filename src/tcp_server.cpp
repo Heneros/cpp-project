@@ -65,9 +65,9 @@ void TcpServer::bindAddress(int port)
 {
     memset(&_serverAddress, 0, sizeof(_serverAddress));
 
-    _serverAddress.sin_family = AF_INET;
-    _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    _serverAddress.sin_port = htons(port);
+    _serverAddress.sin6_family = AF_INET;
+    _serverAddress.sin6_addr = in6addr_any;
+    _serverAddress.sin6_port = htons(port);
 
     const int bindResult = bind(_sockfd.get(), (struct sockaddr *)&_serverAddress, sizeof(_serverAddress));
     const bool bindFailed = (bindResult == -1);
@@ -159,7 +159,8 @@ pipe_ret_t TcpServer::close()
 
 void TcpServer::initializeSocket()
 {
-    _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+    //_sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+    _sockfd.set(socket(AF_INET6, SOCK_STREAM, 0));
     const bool socketFailed = (_sockfd.get() == -1);
     if (socketFailed)
     {
@@ -241,9 +242,12 @@ std::string TcpServer::acceptClient(uint timeout)
     {
         throw std::runtime_error(strerror(errno));
     }
+    char ipStr[INET6_ADDRSTRLEN];
 
     auto newClient = new Client(fileDescriptor);
-    newClient->setIp(inet_ntoa(_clientAddress.sin_addr));
+
+    newClient->setIp(inet_ntop(AF_INET6, &_clientAddress.sin6_addr, ipStr, sizeof(ipStr)));
+
     using namespace std::placeholders;
     newClient->setEventsHandler(std::bind(&TcpServer::clientEventHandler, this, _1, _2, _3));
     newClient->startListen();

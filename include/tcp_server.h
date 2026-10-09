@@ -26,8 +26,8 @@ class TcpServer
 {
 private:
     FileDescriptor _sockfd;
-    struct sockaddr_in _serverAddress;
-    struct sockaddr_in _clientAddress;
+    struct sockaddr_in6 _serverAddress;
+    struct sockaddr_in6 _clientAddress;
 
     fd_set _fds;
 

@@ -43,7 +43,8 @@ pipe_ret_t TcpClient::connectTo(const std::string &address, int port)
 void TcpClient::initializeSocket()
 {
     pipe_ret_t ret;
-    _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+    // _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+    _sockfd.set(socket(AF_INET6, SOCK_STREAM, 0));
     const bool socketFailed = (_sockfd.get() == -1);
     if (socketFailed)
     {

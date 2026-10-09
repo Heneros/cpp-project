@@ -26,7 +26,7 @@ private:
     FileDescriptor _sockfd;
     std::atomic<bool> _isConnected;
     std::atomic<bool> _isClosed;
-    struct sockaddr_in _server;
+    struct sockaddr_in6 _server;
     std::vector<client_observer_t> _subscibers;
     std::jthread *_receiveTask = nullptr;
     std::mutex _subscribersMtx;
