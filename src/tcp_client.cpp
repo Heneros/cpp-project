@@ -59,22 +59,21 @@ void TcpClient::startReceivingMessages()
 
 void TcpClient::setAddress(const std::string &address, int port)
 {
-    const int inetSuccess = inet_aton(address.c_str(), &_server.sin_addr);
-    if (!inetSuccess)
-    {
-        struct hostent *host;
-        struct in_addr **addrList;
-        if ((host = gethostbyname(address.c_str())) == nullptr)
-        {
-            throw std::runtime_error("Failed to resolve hostname");
-        }
-        addrList = (struct in_addr **)host->h_addr_list;
-        _server.sin_addr = *addrList[0];
-    }
-    _server.sin_family = AF_INET;
-    _server.sin_port = htons(port);
-}
+    struct addrinfo hints{}, *res = nullptr;
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
 
+    std::string port_str = std::to_string(port);
+
+    int status = getaddrinfo(address.c_str(), port_str.c_str(), &hints, &res);
+    if (status != 0)
+    {
+        throw std::runtime_error("Failed to resolve address: " + std::string(gai_strerror(status)));
+    }
+
+    std::memcpy(&_server, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
+}
 pipe_ret_t TcpClient::sendMsg(const char *msg, size_t size)
 {
     const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);

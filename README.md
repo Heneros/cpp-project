@@ -3,12 +3,14 @@
 ## Functionality add in future
 
 - Rewrite sockaddr to ipv6
-- Crypto messages
+- Crypto messages by AES 
 - Logging messages 
 - Tests Google
 - Server deleteClient();
 - Ban Client by ip
-    set_socket_option
+
+- Auto detect ipv4 or ipv6
 ==========
 
-## Implemented
+
+

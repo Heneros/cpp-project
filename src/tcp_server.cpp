@@ -226,6 +226,7 @@ void TcpServer::publishClientDisconnected(const std::string &clientIP, const std
         }
     }
 }
+
 std::string TcpServer::acceptClient(uint timeout)
 {
     const pipe_ret_t waitingForClient = waitForClient(timeout);
@@ -235,27 +236,61 @@ std::string TcpServer::acceptClient(uint timeout)
         throw std::runtime_error(waitingForClient.message());
     }
     socklen_t socketSize = sizeof(_clientAddress);
+
     const int fileDescriptor = accept(_sockfd.get(), (struct sockaddr *)&_clientAddress, &socketSize);
 
-    const bool acceptFailed = (fileDescriptor == -1);
-    if (acceptFailed)
+    if (fileDescriptor == -1)
     {
-        throw std::runtime_error(strerror(errno));
+        if (errno == ECONNABORTED || errno == EAGAIN)
+        {
+            return "";
+        }
+
+        throw std::runtime_error("accept failed: " + std::string(strerror(errno)));
     }
     char ipStr[INET6_ADDRSTRLEN];
+    std::string clientIp;
 
-    auto newClient = new Client(fileDescriptor);
+    // const bool acceptFailed = (fileDescriptor == -1);
+    // if (acceptFailed)
+    // {
+    //     throw std::runtime_error(strerror(errno));
+    // }
+    char ipStr[INET6_ADDRSTRLEN];
+    std::string clientIp;
+    if (IN6_IS_ADDR_V4MAPPED(&_clientAddress.sin6_addr))
+    {
+        struct in_addr ipv4_addr;
+        std::memcpy(&ipv4_addr, &_clientAddress.sin6_addr.s6_addr[12], 4);
+        if (inet_ntop(AF_INET, &ipv4_addr, ipStr, sizeof(ipStr)) == nullptr)
+        {
+            ::close(fileDescriptor);
+            throw std::runtime_error("Failed to convert IPv4 address to string");
+        }
+        clientIp = ipStr;
+    }
+    else
+    {
+        if (inet_ntop(AF_INET6, &_clientAddress.sin6_addr, ipStr, sizeof(ipStr)) == nullptr)
+        {
+            ::close(fileDescriptor);
+            throw std::runtime_error("Failed to convert IPv6 address to string");
+        }
+        clientIp = ipStr;
+    }
 
-    newClient->setIp(inet_ntop(AF_INET6, &_clientAddress.sin6_addr, ipStr, sizeof(ipStr)));
-
+    auto newClient = std::make_unique<Client>(fileDescriptor);
+    newClient->setIp(clientIp);
     using namespace std::placeholders;
     newClient->setEventsHandler(std::bind(&TcpServer::clientEventHandler, this, _1, _2, _3));
     newClient->startListen();
 
-    std::lock_guard<std::mutex> lock(_clientsMtx);
-    _clients.push_back(newClient);
+    {
+        std::lock_guard<std::mutex> lock(_clientsMtx);
+        _clients.push_back(std::move(newClient));
+    }
 
-    return newClient->getIp();
+    return clientIp;
 }
 
 pipe_ret_t TcpServer::waitForClient(uint32_t timeout)

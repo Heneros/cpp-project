@@ -16,6 +16,9 @@
 #include <mutex>
 #include <atomic>
 
+#include <cstring>
+#include <stdexcept>
+
 #include "client_observer.h"
 #include "pipe_ret_t.h"
 #include "file_descriptor.h"

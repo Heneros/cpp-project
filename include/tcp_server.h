@@ -31,7 +31,9 @@ private:
 
     fd_set _fds;
 
-    std::vector<Client *> _clients;
+    // std::vector<Client *> _clients;
+    std::vector<std::unique_ptr<Client>> _clients;
+
     std::vector<server_observer_t> _subscribers;
 
     std::mutex _subscribersMtx;
