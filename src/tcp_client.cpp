@@ -60,9 +60,9 @@ void TcpClient::startReceivingMessages()
 void TcpClient::setAddress(const std::string &address, int port)
 {
     struct addrinfo hints{}, *res = nullptr;
-    hints.ai_family = AF_INET6;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-
+    hints.ai_flags = AI_V4MAPPED | AI_ALL;
     std::string port_str = std::to_string(port);
 
     int status = getaddrinfo(address.c_str(), port_str.c_str(), &hints, &res);
@@ -71,9 +71,11 @@ void TcpClient::setAddress(const std::string &address, int port)
         throw std::runtime_error("Failed to resolve address: " + std::string(gai_strerror(status)));
     }
 
+    memset(&_server, 0, sizeof(_server));
     std::memcpy(&_server, res->ai_addr, res->ai_addrlen);
     freeaddrinfo(res);
 }
+
 pipe_ret_t TcpClient::sendMsg(const char *msg, size_t size)
 {
     const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);

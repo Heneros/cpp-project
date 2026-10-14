@@ -32,25 +32,26 @@ void TcpServer::printClients()
         std::cout << "no connected clients\n";
     }
 
-    for (const Client *client : _clients)
+    for (const auto &client : _clients)
     {
         client->print();
     }
 }
+
 pipe_ret_t TcpServer::deleteClient(const std::string &clientIp)
 {
     try
     {
         std::lock_guard<std::mutex> lock(_clientsMtx);
 
-        auto clientIter = std::find_if(_clients.begin(), _clients.end(), [&clientIp](Client *client)
+        auto clientIter = std::find_if(_clients.begin(), _clients.end(), [&clientIp](const auto &client)
                                        { return client->getIp() == clientIp; });
 
         if (clientIter == _clients.end())
         {
             return pipe_ret_t::failure("Client not found");
         }
-        delete *clientIter;
+
         _clients.erase(clientIter);
 
         return pipe_ret_t::success();
@@ -65,7 +66,7 @@ void TcpServer::bindAddress(int port)
 {
     memset(&_serverAddress, 0, sizeof(_serverAddress));
 
-    _serverAddress.sin6_family = AF_INET;
+    _serverAddress.sin6_family = AF_INET6;
     _serverAddress.sin6_addr = in6addr_any;
     _serverAddress.sin6_port = htons(port);
 
@@ -90,7 +91,8 @@ pipe_ret_t TcpServer::start(int port, int maxNumOfClients, bool removeDeadClient
 {
     if (removeDeadClientsAutomatically)
     {
-        _clientsRemoverThread = new std::jthread(&TcpServer::removeDeadClients, this);
+        _clientsRemoverThread = std::make_unique<std::jthread>([this]
+                                                               { removeDeadClients(); });
     }
     try
     {
@@ -107,25 +109,28 @@ pipe_ret_t TcpServer::start(int port, int maxNumOfClients, bool removeDeadClient
 
 void TcpServer::removeDeadClients()
 {
-    std::vector<Client *>::const_iterator clientToRemove;
+    // std::vector<Client *>::const_iterator clientToRemove;
 
-    while (!_stopRemoveClientsTask)
+    while (!_stopRemoveClientsTask.load())
     {
         std::lock_guard<std::mutex> lock(_clientsMtx);
-        do
-        {
-            clientToRemove = std::find_if(_clients.begin(), _clients.end(), [](Client *client)
-                                          { return !client->isConnected(); });
+        auto clientToRemove = _clients.begin();
 
-            if (clientToRemove != _clients.end())
+        while (clientToRemove != _clients.end())
+        {
+            Client *client = clientToRemove->get();
+            if (!client->isConnected())
             {
-                (*clientToRemove)->close();
-                delete *clientToRemove;
-                _clients.erase(clientToRemove);
+                clientToRemove = _clients.erase(clientToRemove);
             }
-        } while (clientToRemove != _clients.end());
+            else
+            {
+                ++clientToRemove;
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-    sleep(2);
 }
 
 pipe_ret_t TcpServer::close()
@@ -133,7 +138,7 @@ pipe_ret_t TcpServer::close()
     terminateDeadClientsRemover();
     {
         std::lock_guard<std::mutex> lock(_clientsMtx);
-        for (Client *client : _clients)
+        for (const auto &client : _clients)
         {
             try
             {
@@ -176,7 +181,7 @@ void TcpServer::terminateDeadClientsRemover()
     {
         _stopRemoveClientsTask = true;
         _clientsRemoverThread->join();
-        delete _clientsRemoverThread;
+        // delete _clientsRemoverThread;
         _clientsRemoverThread = nullptr;
     }
 }
@@ -251,13 +256,6 @@ std::string TcpServer::acceptClient(uint timeout)
     char ipStr[INET6_ADDRSTRLEN];
     std::string clientIp;
 
-    // const bool acceptFailed = (fileDescriptor == -1);
-    // if (acceptFailed)
-    // {
-    //     throw std::runtime_error(strerror(errno));
-    // }
-    char ipStr[INET6_ADDRSTRLEN];
-    std::string clientIp;
     if (IN6_IS_ADDR_V4MAPPED(&_clientAddress.sin6_addr))
     {
         struct in_addr ipv4_addr;
@@ -334,7 +332,7 @@ pipe_ret_t TcpServer::sendToClient(const std::string &clientIP, const char *msg,
     std::lock_guard<std::mutex> lock(_clientsMtx);
 
     const auto clientIter = std::find_if(_clients.begin(), _clients.end(),
-                                         [&clientIP](Client *client)
+                                         [&clientIP](const auto &client)
                                          { return client->getIp() == clientIP; });
 
     if (clientIter == _clients.end())
@@ -349,7 +347,7 @@ pipe_ret_t TcpServer::sendToClient(const std::string &clientIP, const char *msg,
 pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
 {
     std::lock_guard<std::mutex> lock(_clientsMtx);
-    for (const Client *client : _clients)
+    for (const auto &client : _clients)
     {
         pipe_ret_t sendingResult = sendToClient(*client, msg, size);
         if (!sendingResult.isSuccessful())

@@ -39,7 +39,8 @@ private:
     std::mutex _subscribersMtx;
     std::mutex _clientsMtx;
 
-    std::jthread *_clientsRemoverThread = nullptr;
+    std::unique_ptr<std::jthread> _clientsRemoverThread;
+    
     std::atomic<bool> _stopRemoveClientsTask;
     void publishClientMsg(const Client &client, const char *msg, size_t msgSize);
     void publishClientDisconnected(const std::string &, const std::string &);
