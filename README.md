@@ -12,5 +12,10 @@
 - Auto detect ipv4 or ipv6
 ==========
 
+## Build and launch Project
 
+**Build project** `./build.sh`
 
+**Start Server** `./build/tcp_server`
+
+**Start Client** `./build/tcp_client`

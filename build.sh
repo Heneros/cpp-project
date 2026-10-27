@@ -1,5 +1,4 @@
 #!/bin/sh 
 
-mkdir -p build && \
-cd build && \
-cmake .. && make
+cmake -S . -B build
+make -C build
