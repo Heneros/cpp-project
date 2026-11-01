@@ -15,27 +15,37 @@ TcpClient::~TcpClient()
 
 pipe_ret_t TcpClient::connectTo(const std::string &address, int port)
 {
-    try
-    {
-        initializeSocket();
-        setAddress(address, port);
-    }
-    catch (const std::runtime_error &error)
-    {
-        return pipe_ret_t::failure(error.what());
-    }
 
-    const int connectResult = connect(_sockfd.get(), (struct sockaddr *)&_server, sizeof(_server));
+    struct addrinfo hints{},
+        *res = nullptr;
 
-    const bool connectionFailed = (connectResult == -1);
-    if (connectionFailed)
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    std::string port_str = std::to_string(port);
+    int status = getaddrinfo(address.c_str(), port_str.c_str(), &hints, &res);
+
+    if (status != 0)
     {
-        return pipe_ret_t::failure(strerror(errno));
+        return pipe_ret_t::failure("Failed to resolve address: " + std::string(gai_strerror(status)));
     }
 
-    startReceivingMessages();
-    _isConnected = true;
-    _isClosed = false;
+    _sockfd.set(socket(res->ai_family, res->ai_socktype, res->ai_protocol));
+    if (_sockfd.get() == -1)
+    {
+        freeaddrinfo(res);
+        return pipe_ret_t::failure("Failed to create socket: " + std::string(strerror(errno)));
+    }
+
+    std::memcpy(&_server, res->ai_addr, res->ai_addrlen);
+    _addressLength = res->ai_addrlen;
+
+    freeaddrinfo(res);
+
+    if (::connect(_sockfd.get(), (struct sockaddr *)&_server, _addressLength) == -1)
+    {
+        return pipe_ret_t::failure("Failure to connect: " + std::string(strerror(errno)));
+    }
 
     return pipe_ret_t::success();
 }
@@ -50,11 +60,6 @@ void TcpClient::initializeSocket()
     {
         throw std::runtime_error(strerror(errno));
     }
-}
-
-void TcpClient::startReceivingMessages()
-{
-    _receiveTask = new std::jthread(&TcpClient::receiveTask, this);
 }
 
 void TcpClient::setAddress(const std::string &address, int port)
@@ -76,6 +81,11 @@ void TcpClient::setAddress(const std::string &address, int port)
     freeaddrinfo(res);
 }
 
+void TcpClient::startReceivingMessages()
+{
+    _receiveTask = new std::jthread(&TcpClient::receiveTask, this);
+}
+
 pipe_ret_t TcpClient::sendMsg(const char *msg, size_t size)
 {
     const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
@@ -83,7 +93,7 @@ pipe_ret_t TcpClient::sendMsg(const char *msg, size_t size)
     {
         return pipe_ret_t::failure(strerror(errno));
     }
-    if (numBytesSent < size)
+    else if (numBytesSent < size)
     {
         char errorMsg[100];
         sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);

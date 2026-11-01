@@ -164,7 +164,7 @@ int main()
     observer2.wantedIP = "10.88.0.11";
     server.subscribe(observer2);
 
-    acceptClient();
+    // acceptClient();
 
     bool shouldTerminate = false;
     while (!shouldTerminate)

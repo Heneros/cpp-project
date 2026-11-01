@@ -62,7 +62,13 @@ int handleMenuSelection(int selection)
     {
         std::cout << "enter message to send:\n";
         std::string message;
-        std::cin >> message;
+        ///  std::cin >> message;
+        std::getline(std::cin, message);
+        if (message.empty())
+        {
+            std::cout << "Message is empty, nothing to send.\n";
+            break;
+        }
         pipe_ret_t sendRet = client.sendMsg(message.c_str(), message.size());
         if (!sendRet.isSuccessful())
         {

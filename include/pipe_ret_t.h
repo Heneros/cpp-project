@@ -9,8 +9,7 @@ private:
 
 public:
     pipe_ret_t() = default;
-    pipe_ret_t(bool successFlag, const std::string &msg) : _successFlag{successFlag},
-                                                           _msg{msg} {}
+    pipe_ret_t(bool successFlag, const std::string &msg) : _successFlag{successFlag}, _msg{msg} {}
     std::string message() const { return _msg; }
     bool isSuccessful() const { return _successFlag; }
     static pipe_ret_t failure(const std::string &msg);

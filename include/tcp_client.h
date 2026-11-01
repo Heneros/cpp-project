@@ -29,13 +29,15 @@ private:
     FileDescriptor _sockfd;
     std::atomic<bool> _isConnected;
     std::atomic<bool> _isClosed;
-    struct sockaddr_in6 _server;
+    
+    struct sockaddr_storage _server;
+    socklen_t _addressLength;
+
     std::vector<client_observer_t> _subscibers;
     std::jthread *_receiveTask = nullptr;
     std::mutex _subscribersMtx;
 
-    void
-    initializeSocket();
+    void initializeSocket();
     void startReceivingMessages();
     void setAddress(const std::string &address, int port);
     void publishServerMsg(const char *msg, size_t msgSize);
