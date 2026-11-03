@@ -2,6 +2,7 @@
 #include <functional>
 #include <thread>
 #include <algorithm>
+#include <netdb.h>
 
 #include "../include/tcp_server.h"
 #include "../include/common.h"
@@ -64,19 +65,40 @@ pipe_ret_t TcpServer::deleteClient(const std::string &clientIp)
 
 void TcpServer::bindAddress(int port)
 {
-    memset(&_serverAddress, 0, sizeof(_serverAddress));
+    struct addrinfo hints{}, *res = nullptr;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
-    _serverAddress.sin6_family = AF_INET6;
-    _serverAddress.sin6_addr = in6addr_any;
-    _serverAddress.sin6_port = htons(port);
+    std::string port_str = std::to_string(port);
+    int status = getaddrinfo(nullptr, port_str.c_str(), &hints, &res);
 
-    const int bindResult = bind(_sockfd.get(), (struct sockaddr *)&_serverAddress, sizeof(_serverAddress));
-    const bool bindFailed = (bindResult == -1);
-    if (bindFailed)
+    if (status != 0)
     {
-        throw std::runtime_error(strerror(errno));
+        throw std::runtime_error(std::string("getaddrinfo failed: ") + gai_strerror(status));
+    }
+    _sockfd.set(socket(res->ai_family, res->ai_socktype, res->ai_protocol));
+    if (_sockfd.get() == -1)
+    {
+        freeaddrinfo(res);
+        throw std::runtime_error(std::string("socket failed") + strerror(errno));
+    }
+    std::memcpy(&_serverAddress, res->ai_addr, res->ai_addrlen);
+    _serverAddressLength = res->ai_addrlen;
+
+    freeaddrinfo(res);
+
+    const int option = 1;
+
+    setsockopt(_sockfd.get(), SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
+    const int bindResult = bind(_sockfd.get(), (struct sockaddr *)&_serverAddress, _serverAddressLength);
+    if (bindResult == -1)
+    {
+        throw std::runtime_error(std::string("bind failed: ") + strerror(errno));
     }
 }
+
 void TcpServer::listenToClients(int maxNumOfClients)
 {
     const int clientsQueueSize = maxNumOfClients;
@@ -256,25 +278,44 @@ std::string TcpServer::acceptClient(uint timeout)
     char ipStr[INET6_ADDRSTRLEN];
     std::string clientIp;
 
-    if (IN6_IS_ADDR_V4MAPPED(&_clientAddress.sin6_addr))
+    if (_clientAddress.ss_family == AF_INET)
     {
-        struct in_addr ipv4_addr;
-        std::memcpy(&ipv4_addr, &_clientAddress.sin6_addr.s6_addr[12], 4);
-        if (inet_ntop(AF_INET, &ipv4_addr, ipStr, sizeof(ipStr)) == nullptr)
+        struct sockaddr_in *ipv4_addr = (struct sockaddr_in *)&_clientAddress;
+        if (inet_ntop(AF_INET, &ipv4_addr->sin_addr, ipStr, sizeof(ipStr)) == nullptr)
         {
             ::close(fileDescriptor);
             throw std::runtime_error("Failed to convert IPv4 address to string");
         }
         clientIp = ipStr;
     }
+    else if (_clientAddress.ss_family == AF_INET6)
+    {
+        struct sockaddr_in6 *ipv6_addr = (struct sockaddr_in6 *)&_clientAddress;
+        if (IN6_IS_ADDR_V4MAPPED(&ipv6_addr->sin6_addr))
+        {
+            struct in_addr ipv4_addr;
+            std::memcpy(&ipv4_addr, &ipv6_addr->sin6_addr.s6_addr[12], 4);
+            if (inet_ntop(AF_INET, &ipv4_addr, ipStr, sizeof(ipStr)) == nullptr)
+            {
+                ::close(fileDescriptor);
+                throw std::runtime_error("Failed to convert IPv4 address to string");
+            }
+            clientIp = ipStr;
+        }
+        else
+        {
+            if (inet_ntop(AF_INET6, &ipv6_addr->sin6_addr, ipStr, sizeof(ipStr)) == nullptr)
+            {
+                ::close(fileDescriptor);
+                throw std::runtime_error("Failed to convert IPv6 address to string");
+            }
+            clientIp = ipStr;
+        }
+    }
     else
     {
-        if (inet_ntop(AF_INET6, &_clientAddress.sin6_addr, ipStr, sizeof(ipStr)) == nullptr)
-        {
-            ::close(fileDescriptor);
-            throw std::runtime_error("Failed to convert IPv6 address to string");
-        }
-        clientIp = ipStr;
+        ::close(fileDescriptor);
+        throw std::runtime_error("Unknown address family");
     }
 
     auto newClient = std::make_unique<Client>(fileDescriptor);
@@ -296,7 +337,6 @@ pipe_ret_t TcpServer::waitForClient(uint32_t timeout)
     if (timeout > 0)
     {
         const fd_wait::Result waitResult = fd_wait::waitFor(_sockfd, timeout);
-        const bool noIncomingClient = (!FD_ISSET(_sockfd.get(), &_fds));
 
         if (waitResult == fd_wait::Result::FAILURE)
         {
@@ -305,10 +345,6 @@ pipe_ret_t TcpServer::waitForClient(uint32_t timeout)
         else if (waitResult == fd_wait::Result::TIMEOUT)
         {
             return pipe_ret_t::failure("Timeout waiting for client");
-        }
-        else if (noIncomingClient)
-        {
-            return pipe_ret_t::failure("File descriptor is not set");
         }
     }
     return pipe_ret_t::success();

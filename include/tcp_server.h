@@ -26,8 +26,11 @@ class TcpServer
 {
 private:
     FileDescriptor _sockfd;
-    struct sockaddr_in6 _serverAddress;
-    struct sockaddr_in6 _clientAddress;
+    struct sockaddr_storage _serverAddress;
+    struct sockaddr_storage _clientAddress;
+
+    socklen_t _serverAddressLength;
+    socklen_t _clientAddressLength;
 
     fd_set _fds;
 
@@ -40,7 +43,7 @@ private:
     std::mutex _clientsMtx;
 
     std::unique_ptr<std::jthread> _clientsRemoverThread;
-    
+
     std::atomic<bool> _stopRemoveClientsTask;
     void publishClientMsg(const Client &client, const char *msg, size_t msgSize);
     void publishClientDisconnected(const std::string &, const std::string &);
