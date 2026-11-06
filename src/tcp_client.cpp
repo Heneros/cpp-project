@@ -5,7 +5,7 @@
 TcpClient::TcpClient()
 {
     _isConnected = false;
-    _isClosed = true;
+    _isClosed = false;
 }
 
 TcpClient::~TcpClient()
@@ -50,17 +50,17 @@ pipe_ret_t TcpClient::connectTo(const std::string &address, int port)
     return pipe_ret_t::success();
 }
 
-void TcpClient::initializeSocket()
-{
-    pipe_ret_t ret;
-    // _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
-    _sockfd.set(socket(AF_INET6, SOCK_STREAM, 0));
-    const bool socketFailed = (_sockfd.get() == -1);
-    if (socketFailed)
-    {
-        throw std::runtime_error(strerror(errno));
-    }
-}
+// void TcpClient::initializeSocket()
+// {
+//     pipe_ret_t ret;
+//     // _sockfd.set(socket(AF_INET, SOCK_STREAM, 0));
+//     _sockfd.set(socket(AF_INET6, SOCK_STREAM, 0));
+//     const bool socketFailed = (_sockfd.get() == -1);
+//     if (socketFailed)
+//     {
+//         throw std::runtime_error(strerror(errno));
+//     }
+// }
 
 void TcpClient::setAddress(const std::string &address, int port)
 {
@@ -154,6 +154,7 @@ void TcpClient::receiveTask()
 }
 void TcpClient::publishServerMsg(const char *msg, size_t msgSize)
 {
+    std::cout << "Hello";
     std::lock_guard<std::mutex> lock(_subscribersMtx);
     for (const auto &subscriber : _subscibers)
     {

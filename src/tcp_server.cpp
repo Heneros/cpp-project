@@ -135,19 +135,21 @@ void TcpServer::removeDeadClients()
 
     while (!_stopRemoveClientsTask.load())
     {
-        std::lock_guard<std::mutex> lock(_clientsMtx);
-        auto clientToRemove = _clients.begin();
-
-        while (clientToRemove != _clients.end())
         {
-            Client *client = clientToRemove->get();
-            if (!client->isConnected())
+            std::lock_guard<std::mutex> lock(_clientsMtx);
+            auto clientToRemove = _clients.begin();
+
+            while (clientToRemove != _clients.end())
             {
-                clientToRemove = _clients.erase(clientToRemove);
-            }
-            else
-            {
-                ++clientToRemove;
+                /// Client *client = clientToRemove->get();
+                if (!(*clientToRemove)->isConnected())
+                {
+                    clientToRemove = _clients.erase(clientToRemove);
+                }
+                else
+                {
+                    ++clientToRemove;
+                }
             }
         }
 
@@ -382,14 +384,24 @@ pipe_ret_t TcpServer::sendToClient(const std::string &clientIP, const char *msg,
 
 pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
 {
+
     std::lock_guard<std::mutex> lock(_clientsMtx);
+
+    if (_clients.empty())
+    {
+        return pipe_ret_t::failure("No clients connected");
+    }
+
     for (const auto &client : _clients)
     {
+
         pipe_ret_t sendingResult = sendToClient(*client, msg, size);
+
         if (!sendingResult.isSuccessful())
         {
-            return sendingResult;
+            std::cout << "[ERROR] sendingResult: " << sendingResult.message() << "\n";
         }
     }
+
     return pipe_ret_t::success();
 }
