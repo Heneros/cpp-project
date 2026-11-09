@@ -17,6 +17,7 @@
 
 #include <cstring>
 #include <stdexcept>
+#include <memory>
 
 #include "client_observer.h"
 #include "pipe_ret_t.h"
@@ -28,7 +29,7 @@ private:
     FileDescriptor _sockfd;
     std::atomic<bool> _isConnected;
     std::atomic<bool> _isClosed;
-    
+
     struct sockaddr_storage _server;
     socklen_t _addressLength;
 
@@ -36,10 +37,13 @@ private:
     std::jthread *_receiveTask = nullptr;
     std::mutex _subscribersMtx;
 
+    // std::shared_ptr<int> actions;
+    std::atomic<size_t> _actionsCount{0};
+
     void initializeSocket();
     void startReceivingMessages();
     void setAddress(const std::string &address, int port);
-    void publishServerMsg(const char *msg, size_t msgSize);
+    void publishServerMsg(std::shared_ptr<std::vector<char>> msg);
     void publishServerDisconnected(const pipe_ret_t &ret);
     void receiveTask();
     void terminateReceiveThread();
@@ -54,6 +58,11 @@ public:
 
     void subscribe(const client_observer_t &observer);
     bool isConnected() const { return _isConnected; }
+
+    size_t getActionsCount() const
+    {
+        return _actionsCount.load();
+    }
 
     pipe_ret_t close();
 };

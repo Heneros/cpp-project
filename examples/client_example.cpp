@@ -19,11 +19,6 @@ void sig_exit(int s)
     exit(0);
 }
 
-void onIncomingMsg(const char *msg, size_t size)
-{
-    std::cout << "Got msg from server: " << msg << "\n";
-}
-
 void onDisconnection(const pipe_ret_t &ret)
 {
     std::cout << "Server disconnected: " << ret.message() << "\n";
@@ -34,6 +29,12 @@ void printMenu()
     std::cout << "select one of the following options: \n"
               << "1. send message to server\n"
               << "2. close client and exit\n";
+}
+
+void onIncomingMsg(const char *msg, size_t size)
+{
+    std::cout << "Got msg from server: " << msg << "\n";
+    printMenu();
 }
 int getMenuSelection()
 {
@@ -61,6 +62,8 @@ int handleMenuSelection(int selection)
     case 1:
     {
         std::cout << "enter message to send:\n";
+        std::cout << "Total actions made by client: "
+                  << client.getActionsCount() << "\n";
         std::string message;
         ///  std::cin >> message;
         std::getline(std::cin, message);
@@ -76,7 +79,7 @@ int handleMenuSelection(int selection)
         }
         else
         {
-            std::cout << "message was sent successfuly\n";
+            std::cout << "message was sent successfully\n";
         }
         break;
     }
@@ -93,6 +96,7 @@ int handleMenuSelection(int selection)
         }
         return true;
     }
+
     default:
     {
         std::cout << "invalid selection: " << selection << ". selection must be b/w " << minSelection << " and " << maxSelection << "\n";

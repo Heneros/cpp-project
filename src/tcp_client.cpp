@@ -46,7 +46,8 @@ pipe_ret_t TcpClient::connectTo(const std::string &address, int port)
     {
         return pipe_ret_t::failure("Failure to connect: " + std::string(strerror(errno)));
     }
-
+    _isConnected = true;
+    startReceivingMessages();
     return pipe_ret_t::success();
 }
 
@@ -89,16 +90,21 @@ void TcpClient::startReceivingMessages()
 pipe_ret_t TcpClient::sendMsg(const char *msg, size_t size)
 {
     const size_t numBytesSent = send(_sockfd.get(), msg, size, 0);
+
+    // std::shared_ptr<int> actions;
+
     if (numBytesSent < 0)
     {
         return pipe_ret_t::failure(strerror(errno));
     }
     else if (numBytesSent < size)
     {
+
         char errorMsg[100];
         sprintf(errorMsg, "Only %lu bytes out of %lu was sent to client", numBytesSent, size);
         return pipe_ret_t::failure(errorMsg);
     }
+    _actionsCount++;
     return pipe_ret_t::success();
 }
 
@@ -128,9 +134,10 @@ void TcpClient::receiveTask()
             continue;
         }
 
-        char msg[MAX_PACKET_SIZE];
-        const size_t numOfBytesReceived = recv(_sockfd.get(), msg, MAX_PACKET_SIZE, 0);
+        char msg[MAX_PACKET_SIZE] = {0};
 
+        const size_t numOfBytesReceived = recv(_sockfd.get(), msg, MAX_PACKET_SIZE - 1, 0);
+        auto msg_ptr = std::make_shared<std::vector<char>>(msg, msg + numOfBytesReceived);
         if (numOfBytesReceived < 1)
         {
             std::string errorMsg;
@@ -148,19 +155,22 @@ void TcpClient::receiveTask()
         }
         else
         {
-            publishServerMsg(msg, numOfBytesReceived);
+            _actionsCount++;
+
+            std::cout << "[CLIENT] Action count: " << getActionsCount() << "\n";
+
+            publishServerMsg(msg_ptr);
         }
     }
 }
-void TcpClient::publishServerMsg(const char *msg, size_t msgSize)
+void TcpClient::publishServerMsg(std::shared_ptr<std::vector<char>> msg)
 {
-    std::cout << "Hello";
     std::lock_guard<std::mutex> lock(_subscribersMtx);
     for (const auto &subscriber : _subscibers)
     {
         if (subscriber.incomingPacketHandler)
         {
-            subscriber.incomingPacketHandler(msg, msgSize);
+            subscriber.incomingPacketHandler(msg);
         }
     }
 }
@@ -171,7 +181,9 @@ void TcpClient::terminateReceiveThread()
 
     if (_receiveTask)
     {
+        ::shutdown(_sockfd.get(), SHUT_RDWR);
         _receiveTask->join();
+        ;
         delete _receiveTask;
         _receiveTask = nullptr;
     }

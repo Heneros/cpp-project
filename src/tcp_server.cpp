@@ -65,7 +65,7 @@ pipe_ret_t TcpServer::deleteClient(const std::string &clientIp)
 
 void TcpServer::bindAddress(int port)
 {
-    struct addrinfo hints{}, *res = nullptr;
+    struct addrinfo hints{}, *res = nullptr, *p = nullptr;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
@@ -77,30 +77,39 @@ void TcpServer::bindAddress(int port)
     {
         throw std::runtime_error(std::string("getaddrinfo failed: ") + gai_strerror(status));
     }
-    _sockfd.set(socket(res->ai_family, res->ai_socktype, res->ai_protocol));
-    if (_sockfd.get() == -1)
-    {
-        freeaddrinfo(res);
-        throw std::runtime_error(std::string("socket failed") + strerror(errno));
-    }
-    std::memcpy(&_serverAddress, res->ai_addr, res->ai_addrlen);
-    _serverAddressLength = res->ai_addrlen;
 
+    int sockfd = -1;
+    for (p = res; p != nullptr; p = p->ai_next)
+    {
+        sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (sockfd == -1)
+            continue;
+
+        int option = 1;
+        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == 0)
+        {
+            _sockfd.set(sockfd);
+            std::memcpy(&_serverAddress, p->ai_addr, p->ai_addrlen);
+            _serverAddressLength = p->ai_addrlen;
+            break;
+        }
+
+        ::close(sockfd);
+        sockfd = -1;
+    }
     freeaddrinfo(res);
 
-    const int option = 1;
-
-    setsockopt(_sockfd.get(), SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
-
-    const int bindResult = bind(_sockfd.get(), (struct sockaddr *)&_serverAddress, _serverAddressLength);
-    if (bindResult == -1)
+    if (sockfd == -1)
     {
-        throw std::runtime_error(std::string("bind failed: ") + strerror(errno));
+        throw std::runtime_error("bind failed on all available addresses");
     }
 }
 
 void TcpServer::listenToClients(int maxNumOfClients)
 {
+
     const int clientsQueueSize = maxNumOfClients;
     const bool listenFailed = (listen(_sockfd.get(), clientsQueueSize) == -1);
     if (listenFailed)
@@ -118,7 +127,7 @@ pipe_ret_t TcpServer::start(int port, int maxNumOfClients, bool removeDeadClient
     }
     try
     {
-        initializeSocket();
+        // initializeSocket();
         bindAddress(port);
         listenToClients(maxNumOfClients);
     }
@@ -351,15 +360,55 @@ pipe_ret_t TcpServer::waitForClient(uint32_t timeout)
     }
     return pipe_ret_t::success();
 }
+pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
+{
+    // std::lock_guard<std::mutex> lock(_clientsMtx);
+    std::vector<std::shared_ptr<Client>> local_clients;
+
+    {
+        std::lock_guard<std::mutex> lock(_clientsMtx);
+        local_clients = _clients;
+    }
+
+    if (local_clients.empty())
+    {
+        return pipe_ret_t::failure("No clients connected");
+    }
+
+    bool atLeastOneSuccess = false;
+
+    for (const auto &client : local_clients)
+    {
+        pipe_ret_t sendingResult = sendToClient(*client, msg, size);
+
+        if (sendingResult.isSuccessful())
+        {
+            atLeastOneSuccess = true;
+        }
+        else
+        {
+            std::cout << "[ERROR] sendingResult: " << sendingResult.message() << "\n";
+        }
+    }
+
+    if (!atLeastOneSuccess)
+    {
+        return pipe_ret_t::failure("Failed to send to any client");
+    }
+
+    return pipe_ret_t::success();
+}
 
 pipe_ret_t TcpServer::sendToClient(const Client &client, const char *msg, size_t size)
 {
     try
     {
+
         client.send(msg, size);
     }
     catch (const std::runtime_error &error)
     {
+
         return pipe_ret_t::failure(error.what());
     }
     return pipe_ret_t::success();
@@ -380,28 +429,4 @@ pipe_ret_t TcpServer::sendToClient(const std::string &clientIP, const char *msg,
 
     const Client &client = *(*clientIter);
     return sendToClient(client, msg, size);
-}
-
-pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
-{
-
-    std::lock_guard<std::mutex> lock(_clientsMtx);
-
-    if (_clients.empty())
-    {
-        return pipe_ret_t::failure("No clients connected");
-    }
-
-    for (const auto &client : _clients)
-    {
-
-        pipe_ret_t sendingResult = sendToClient(*client, msg, size);
-
-        if (!sendingResult.isSuccessful())
-        {
-            std::cout << "[ERROR] sendingResult: " << sendingResult.message() << "\n";
-        }
-    }
-
-    return pipe_ret_t::success();
 }

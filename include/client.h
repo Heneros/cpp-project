@@ -6,6 +6,8 @@
 #include <functional>
 #include <atomic>
 
+#include <memory>
+
 #include "client_event.h"
 #include "file_descriptor.h"
 
@@ -19,6 +21,7 @@ private:
     std::atomic<bool> _isConnected;
     std::jthread *_receiveThread = nullptr;
     client_event_handler_t _eventHandlerCallback;
+
 
     void setConnected(bool flag) { _isConnected = flag; }
     void receiveTask();
