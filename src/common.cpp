@@ -1,6 +1,7 @@
 #include <cstdint>
 #include "../include/file_descriptor.h"
 #include "../include/common.h"
+#include <expected>
 
 #include <sys/select.h>
 
@@ -9,6 +10,7 @@
 
 namespace fd_wait
 {
+
     Result waitFor(const FileDescriptor &fileDescriptor, uint32_t timeoutSeconds)
     {
         struct timeval tv;

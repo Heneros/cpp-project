@@ -16,6 +16,8 @@
 #include <errno.h>
 #include <iostream>
 #include <mutex>
+#include <optional>
+#include <expected>
 
 #include "server_observer.h"
 #include "client.h"
@@ -52,13 +54,15 @@ private:
 
     void removeDeadClients();
     void terminateDeadClientsRemover();
-    static pipe_ret_t sendToClient(const Client &client, const char *msg, size_t size);
+
+    std::expected<void, std::string> sendToClient(const Client &client, const char *msg, size_t size);
+    std::optional<std::shared_ptr<Client>> findClientByIp(const std::string &clientIP);
 
 public:
     TcpServer();
     ~TcpServer();
 
-    pipe_ret_t start(int port, int maxNumOfClients = 5, bool removeDeadClientsAutomatically = true);
+    std::expected<void, std::string> start(int port, int maxNumOfClients = 5, bool removeDeadClientsAutomatically = true);
 
     void initializeSocket();
     void bindAddress(int port);
@@ -67,8 +71,8 @@ public:
 
     void subscribe(const server_observer_t &observer);
 
-    pipe_ret_t sendToAllClients(const char *msg, size_t size);
-    pipe_ret_t sendToClient(const std::string &clientIP, const char *msg, size_t size);
+    std::expected<void, std::string> sendToAllClients(const char *msg, size_t size);
+    std::expected<void, std::string> sendToClient(const std::string &clientIP, const char *msg, size_t size);
 
     pipe_ret_t deleteClient(const std::string &clientIp);
 

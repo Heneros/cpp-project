@@ -31,9 +31,10 @@ void printMenu()
               << "2. close client and exit\n";
 }
 
-void onIncomingMsg(const char *msg, size_t size)
+void onIncomingMsg(std::shared_ptr<std::vector<char>> msg)
 {
-    std::cout << "Got msg from server: " << msg << "\n";
+    std::string text(msg->begin(), msg->end());
+    std::cout << "Got msg from server: " << text << "\n";
     printMenu();
 }
 int getMenuSelection()

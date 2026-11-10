@@ -118,7 +118,7 @@ void TcpServer::listenToClients(int maxNumOfClients)
     }
 }
 
-pipe_ret_t TcpServer::start(int port, int maxNumOfClients, bool removeDeadClientsAutomatically)
+std::expected<void, std::string> TcpServer::start(int port, int maxNumOfClients, bool removeDeadClientsAutomatically)
 {
     if (removeDeadClientsAutomatically)
     {
@@ -133,9 +133,9 @@ pipe_ret_t TcpServer::start(int port, int maxNumOfClients, bool removeDeadClient
     }
     catch (const std::runtime_error &error)
     {
-        return pipe_ret_t::failure(error.what());
+        return std::unexpected(error.what());
     }
-    return pipe_ret_t::success();
+    return {};
 }
 
 void TcpServer::removeDeadClients()
@@ -360,7 +360,8 @@ pipe_ret_t TcpServer::waitForClient(uint32_t timeout)
     }
     return pipe_ret_t::success();
 }
-pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
+
+std::expected<void, std::string> TcpServer::sendToAllClients(const char *msg, size_t size)
 {
     // std::lock_guard<std::mutex> lock(_clientsMtx);
     std::vector<std::shared_ptr<Client>> local_clients;
@@ -372,34 +373,34 @@ pipe_ret_t TcpServer::sendToAllClients(const char *msg, size_t size)
 
     if (local_clients.empty())
     {
-        return pipe_ret_t::failure("No clients connected");
+        return std::unexpected("No clients connected");
     }
 
     bool atLeastOneSuccess = false;
 
     for (const auto &client : local_clients)
     {
-        pipe_ret_t sendingResult = sendToClient(*client, msg, size);
+        auto sendingResult = sendToClient(*client, msg, size);
 
-        if (sendingResult.isSuccessful())
+        if (sendingResult.has_value())
         {
             atLeastOneSuccess = true;
         }
         else
         {
-            std::cout << "[ERROR] sendingResult: " << sendingResult.message() << "\n";
+            std::cout << "[ERROR] sendingResult: " << sendingResult.error() << "\n";
         }
     }
 
     if (!atLeastOneSuccess)
     {
-        return pipe_ret_t::failure("Failed to send to any client");
+        return std::unexpected("Failed to send to any client");
     }
 
-    return pipe_ret_t::success();
+    return {};
 }
 
-pipe_ret_t TcpServer::sendToClient(const Client &client, const char *msg, size_t size)
+std::expected<void, std::string> TcpServer::sendToClient(const Client &client, const char *msg, size_t size)
 {
     try
     {
@@ -409,24 +410,38 @@ pipe_ret_t TcpServer::sendToClient(const Client &client, const char *msg, size_t
     catch (const std::runtime_error &error)
     {
 
-        return pipe_ret_t::failure(error.what());
+        return std::unexpected(error.what());
     }
-    return pipe_ret_t::success();
+    return {};
 }
 
-pipe_ret_t TcpServer::sendToClient(const std::string &clientIP, const char *msg, size_t size)
+std::optional<std::shared_ptr<Client>> TcpServer::findClientByIp(const std::string &clientIP)
 {
-    std::lock_guard<std::mutex> lock(_clientsMtx);
 
-    const auto clientIter = std::find_if(_clients.begin(), _clients.end(),
-                                         [&clientIP](const auto &client)
+    const auto clientIter = std::find_if(_clients.begin(), _clients.end(), [&clientIP](const auto &client)
                                          { return client->getIp() == clientIP; });
-
     if (clientIter == _clients.end())
     {
-        return pipe_ret_t::failure("client not found");
+        return std::nullopt;
+    }
+    return *clientIter;
+}
+
+std::expected<void, std::string> TcpServer::sendToClient(const std::string &clientIP, const char *msg, size_t size)
+{
+    std::shared_ptr<Client> client_to_send = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(_clientsMtx);
+
+        const auto client = findClientByIp(clientIP);
+
+        if (!client.has_value())
+        {
+            std::cout << "Client " << clientIP << " not found\n";
+            return std::unexpected("Client " + clientIP + " not found");
+        }
+        client_to_send = client.value();
     }
 
-    const Client &client = *(*clientIter);
-    return sendToClient(client, msg, size);
+    return sendToClient(*client_to_send, msg, size);
 }

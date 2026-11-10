@@ -117,14 +117,14 @@ bool handleMenuSelection(int selection)
         }
         cout << msg;
 
-        pipe_ret_t sendingResult = server.sendToAllClients(msg.c_str(), msg.size());
-        if (sendingResult.isSuccessful())
+        auto sendingResult = server.sendToAllClients(msg.c_str(), msg.size());
+        if (sendingResult.has_value())
         {
             std::cout << "sent message to all clients successfully\n";
         }
         else
         {
-            std::cout << "failed to sent message: " << sendingResult.message() << "\n";
+            std::cout << "failed to sent message: " << sendingResult.error() << "\n";
         }
         break;
     }
@@ -142,10 +142,11 @@ bool handleMenuSelection(int selection)
         std::string message;
         std::getline(std::cin, message);
 
-        pipe_ret_t result = server.sendToClient(clientIP, message.c_str(), message.size());
-        if (!result.isSuccessful())
+        const auto result = server.sendToClient(clientIP, message.c_str(), message.size());
+        if (!result.has_value())
         {
-            std::cout << "sending failed: " << result.message() << "\n";
+            std::cout << "sending failed: " << result.error() << "\n";
+            // return std::unexpected(" Client " + clientIP + " not found ");
         }
         else
         {
@@ -171,22 +172,13 @@ bool handleMenuSelection(int selection)
 int main()
 {
 
-    pipe_ret_t startRet = server.start(65123, 10, true);
-    if (!startRet.isSuccessful())
+     auto startRet = server.start(65123, 10, true);
+    if (!startRet.has_value())
     {
-        std::cout << "Error loading server: " << startRet.message() << "\n";
+        std::cout << "Error loading server: " << startRet.error() << "\n";
         return EXIT_FAILURE;
     }
     std::cout << "Server setup succeeded on port 65123\n";
-    // if (startRet.isSuccessful())
-    // {
-    //     std::cout << "Server setup succeeded\n";
-    // }
-    // else
-    // {
-    //     std::cout << "Server setup failed: " << startRet.message() << "\n";
-    //     return EXIT_FAILURE;
-    // }
 
     observer1.incomingPacketHandler = onIncomingMsg1;
     observer1.disconnectionHandler = onClientDisconnected;
@@ -194,13 +186,6 @@ int main()
     server.subscribe(observer1);
 
     std::thread acceptThread(acceptClientsLoop);
-
-    // observer2.incomingPacketHandler = onIncomingMsg2;
-    // observer2.disconnectionHandler = nullptr;
-    // observer2.wantedIP = "10.88.0.11";
-    // server.subscribe(observer2);
-
-    // acceptClient();
 
     bool shouldTerminate = false;
     while (!shouldTerminate)

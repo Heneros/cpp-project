@@ -14,6 +14,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <optional>
 
 #include <cstring>
 #include <stdexcept>

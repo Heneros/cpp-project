@@ -7,6 +7,6 @@
 struct client_observer_t
 {
     std::string wantedIP = "";
-    std::function<void(std::shared_ptr<std::vector<char>> msg)> incomingPacketHandler = nullptr;
+    std::function<void(std::shared_ptr<std::vector<char>> msg)> incomingPacketHandler;
     std::function<void(const pipe_ret_t &ret)> disconnectionHandler = nullptr;
 };
