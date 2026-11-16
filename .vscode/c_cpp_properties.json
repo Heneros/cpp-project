@@ -3,7 +3,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
@@ -16,7 +16,8 @@
             "name": "MSYS POSIX",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:/msys64/usr/include/**"
+                "C:/msys64/usr/include/**",
+                "${workspaceFolder}/.vscode/stubs"
             ],
             "defines": [
                 "_DEBUG",
