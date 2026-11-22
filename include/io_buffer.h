@@ -60,7 +60,7 @@ struct IOBuffer2
     };
 
     std::vector<Byte> read_buffer_;
-    /* Number of bytes currently in read buffer */
+
     std::size_t read_bytes_;
 
     std::deque<std::tuple<SockAddr, std::vector<Byte>>> write_queue_;

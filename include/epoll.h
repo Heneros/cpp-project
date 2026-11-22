@@ -15,6 +15,19 @@ public:
     static constexpr int kMaxEvents = 20;
     static std::shared_ptr<Epoll> GetInstance();
     Epoll(int maxevents);
+    Epoll() : Epoll(kMaxEvents) {};
+    ~Epoll();
+
+    Epoll(const Epoll &) = delete;
+    Epoll(Epoll &&) = delete;
+    void Join(int sock_fd, std::shared_ptr<Pollable> poller_ptr);
+    void Leave(int sock_fd);
+    void DataOutReady(int sock_fd);
+    void DataOutClear(int sock_fd);
+    void DataInResume(int sock_fd);
+    void DataInPause(int sock_fd);
+    void Wait();
+    void Terminate();
 
 private:
     int epollfd_;
