@@ -18,15 +18,16 @@ public:
 class Acceptable : virtual public Pollable
 {
 protected:
-    virtual void onAccept(int listen_sock) = 0;
-    virtual void onAcceptError(int listen_sock) { (void)listen_sock; }
+    virtual void OnAccept(int listen_sock) = 0;
+    virtual void OnAcceptError(int listen_sock) { (void)listen_sock; }
     friend class Epoll;
 };
 
 class ReadWritable : virtual public Pollable
 {
 protected:
-    virtual void onRead(int sock_fd) = 0;
+    virtual void OnRead(int sock_fd) = 0;
+    virtual void OnClose(int sock_fd) = 0;
     virtual void OnWrite(int sock_fd) = 0;
 
     virtual void OnDisconnect(int sock_fd) { (void)sock_fd; }
@@ -36,6 +37,6 @@ protected:
 class Closable : virtual public Pollable
 {
 protected:
-    virtual void onClose(int sock_fd) = 0;
+    virtual void OnClose(int sock_fd) = 0;
     friend class Epoll;
 };

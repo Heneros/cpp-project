@@ -33,6 +33,7 @@ private:
 
 class Listener : public Acceptable
 {
+public:
     Listener(int domain, int max_connections);
     Listener(int max_connections) : Listener(AF_INET, max_connections) {};
     ~Listener();

@@ -19,6 +19,8 @@ RUN apk add --no-cache \
     vim \
     bash \
     netcat-openbsd \
+    libspdlog-dev \
+    libfmt-dev \
     curl \
     wget
 
