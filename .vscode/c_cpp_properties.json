@@ -17,7 +17,13 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "C:/msys64/usr/include/**",
-                "${workspaceFolder}/.vscode/stubs"
+                "${workspaceFolder}/.vscode/stubs",
+                "C:/msys64/usr/include/**",
+                "C:/msys64/usr/include/sys/**",
+                "C:/msys64/usr/include/asm/**"
+            ],
+            "forcedInclude": [
+                "${workspaceFolder}/.vscode/stubs/posix_stubs.h"
             ],
             "defines": [
                 "_DEBUG",
@@ -25,7 +31,7 @@
                 "_UNICODE",
                 "_POSIX_C_SOURCE=200809L",
                 "__STDC_FORMAT_MACROS",
-                "_GNU_SOURCE"
+                "_GNU_SOURCE",
             ],
             "compilerPath": "/usr/bin/g++-13",
             "cStandard": "gnu23",
